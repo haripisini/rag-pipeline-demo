@@ -10,24 +10,13 @@ class QueryRequest(BaseModel):
     tenant_id: str
     role: str
 
-# Dummy data (for metadata filtering)
-DATA = [
-    {"text": "AWS Glue is ETL service", "tenant_id": "t1"},
-    {"text": "Databricks used for big data", "tenant_id": "t2"},
-    {"text": "RAG uses retrieval + generation", "tenant_id": "t1"}
-]
-
-# Metadata filtering
-def filter_by_tenant(query, tenant_id):
-    results = []
-    for item in DATA:
-        if item["tenant_id"] == tenant_id and query.lower() in item["text"].lower():
-            results.append(item["text"])
-    return results
-
-# Audit logging
+# Dummy audit log
 def audit_log(request):
     print(f"Audit log: {request.query}")
+
+# Dummy tenant filter
+def filter_by_tenant(query, tenant_id):
+    return []
 
 # API endpoint
 @app.post("/query")

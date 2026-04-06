@@ -2,71 +2,51 @@ import asyncio
 import random
 import redis
 
-# -------------------------------
-# Redis Connection (Caching Layer)
-# -------------------------------
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+# Redis connection
+redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-
-# -------------------------------
-# Knowledge Graph (Simple Mock)
-# -------------------------------
-KNOWLEDGE_GRAPH = {
+# Knowledge Graph
+GRAPH = {
     "RAG": ["retrieval", "generation"],
-    "Databricks": ["spark", "big data"],
-    "AWS": ["cloud", "ETL"]
+    "Databricks": ["spark", "big data"]
 }
 
-
-def get_graph_context(query: str):
-    return KNOWLEDGE_GRAPH.get(query, [])
-
+def get_graph_context(query):
+    return GRAPH.get(query, [])
 
 # -------------------------------
-# Core Pipeline (Single Query)
+# Main Pipeline
 # -------------------------------
 async def run_pipeline(query: str):
-    # 1. Check cache first
-    cached_result = redis_client.get(query)
-    if cached_result:
+
+    # ✅ 1. Check Redis cache
+    cached = redis_client.get(query)
+    if cached:
         return {
-            "results": [f"(cache) {cached_result}"],
+            "results": [f"(cache) {cached}"],
             "confidence": 0.95
         }
 
-    try:
-        # 2. Simulate processing delay
-        await asyncio.sleep(1)
+    # ✅ 2. Get context
+    context = get_graph_context(query)
 
-        # 3. Get graph context
-        context = get_graph_context(query)
+    # ✅ 3. Generate answer
+    answer = f"{query} uses retrieval + generation"
 
-        # 4. Generate response
-        answer = f"Answer for '{query}' using context {context}"
+    # ✅ 4. Store in Redis
+    redis_client.set(query, answer)
 
-        result = {
-            "results": [answer],
-            "confidence": round(random.uniform(0.75, 0.9), 2)
-        }
-
-        # 5. Store in cache
-        redis_client.set(query, answer)
-
-        return result
-
-    except Exception as e:
-        # 6. Fallback handling (important for production)
-        return {
-            "results": ["Fallback response due to system issue"],
-            "confidence": 0.5
-        }
+    return {
+        "results": [answer],
+        "confidence": round(random.uniform(0.7, 0.95), 2)
+    }
 
 
 # -------------------------------
-# Multi Query (Async Execution)
+# Multi Query (Async)
 # -------------------------------
 async def multi_query_pipeline(query: str):
-    # simulate query expansion
+
     expanded_queries = [
         query,
         f"{query} example",
