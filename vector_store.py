@@ -1,14 +1,12 @@
-# vector_store.py
-
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
 from sentence_transformers import SentenceTransformer
 import uuid
 
-# 🔹 Load embedding model
+# 🔹 Load embedding model (VERY IMPORTANT)
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# 🔹 Connect Qdrant (local memory)
+# 🔹 Connect Qdrant (in-memory)
 client = QdrantClient(":memory:")
 
 COLLECTION_NAME = "rag_collection"
@@ -19,7 +17,7 @@ client.recreate_collection(
     vectors_config=VectorParams(size=384, distance=Distance.COSINE),
 )
 
-# 🔹 Sample data
+# 🔹 Sample documents
 documents = [
     "RAG uses retrieval and generation",
     "Redis is used for caching",
@@ -45,15 +43,14 @@ client.upsert(
     points=points
 )
 
-
-# 🔹 Search function
+# 🔹 Search function (UPDATED API)
 def search_vector(query):
     query_vector = model.encode(query).tolist()
 
-    results = client.search(
+    results = client.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
+        query=query_vector,
         limit=2
     )
 
-    return [r.payload["text"] for r in results]
+    return [point.payload["text"] for point in results.points]
