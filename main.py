@@ -4,36 +4,65 @@ from workflow import multi_query_pipeline
 
 app = FastAPI()
 
-# Request model
+# -------------------------------
+# 🔹 Request Model
+# -------------------------------
 class QueryRequest(BaseModel):
     query: str
     tenant_id: str
     role: str
 
-# Dummy audit log
-def audit_log(request):
-    print(f"Audit log: {request.query}")
 
-# Dummy tenant filter
-def filter_by_tenant(query, tenant_id):
-    return []
+# -------------------------------
+# 🔹 Governance Layer
+# -------------------------------
+def governance_check(query):
+    blocked_words = ["hack", "illegal", "attack"]
 
-# API endpoint
+    for word in blocked_words:
+        if word in query.lower():
+            return False
+
+    return True
+
+
+# -------------------------------
+# 🔹 Audit Logging
+# -------------------------------
+def audit_log(request, response):
+    log = {
+        "query": request.query,
+        "tenant": request.tenant_id,
+        "response": response,
+        "status": "success"
+    }
+
+    print("AUDIT LOG:", log)
+
+
+# -------------------------------
+# 🔹 API Endpoint
+# -------------------------------
 @app.post("/query")
 async def query_api(request: QueryRequest):
 
-    audit_log(request)
+    # ✅ Governance Check
+    if not governance_check(request.query):
+        return {
+            "error": "Query not allowed (governance blocked)"
+        }
 
-    filtered = filter_by_tenant(request.query, request.tenant_id)
-
-    results = await multi_query_pipeline(request.query)
+    # ✅ Run pipeline (with tenant)
+    results = await multi_query_pipeline(request.query, request.tenant_id)
     result = results[0]
 
-    if filtered:
-        result["results"] = filtered
-
-    return {
+    response = {
         "tenant": request.tenant_id,
         "query": request.query,
         "output": result
     }
+
+    # ✅ Audit logging
+    audit_log(request, response)
+
+    return response

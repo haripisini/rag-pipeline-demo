@@ -1,51 +1,63 @@
 import asyncio
-import random
 import redis
+from vector_store import search_vector
 
-# Redis connection
-redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+# -------------------------------
+# 🔹 Redis Setup
+# -------------------------------
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
-# Knowledge Graph
-GRAPH = {
-    "RAG": ["retrieval", "generation"],
-    "Databricks": ["spark", "big data"]
+
+# -------------------------------
+# 🔹 Knowledge Graph (simple)
+# -------------------------------
+knowledge_graph = {
+    "rag": ["retrieval", "generation"],
+    "redis": ["cache", "fast"],
+    "qdrant": ["vector db", "search"],
 }
 
-def get_graph_context(query):
-    return GRAPH.get(query, [])
 
 # -------------------------------
-# Main Pipeline
+# 🔹 Main Pipeline
 # -------------------------------
-async def run_pipeline(query: str):
+async def run_pipeline(query: str, tenant_id: str):
 
-    # ✅ 1. Check Redis cache
-    cached = redis_client.get(query)
+    cache_key = f"{tenant_id}:{query}"
+
+    # ✅ Check cache
+    cached = redis_client.get(cache_key)
     if cached:
         return {
             "results": [f"(cache) {cached}"],
             "confidence": 0.95
         }
 
-    # ✅ 2. Get context
-    context = get_graph_context(query)
+    # ✅ Vector Retrieval (Qdrant)
+    context = search_vector(query)
 
-    # ✅ 3. Generate answer
-    answer = f"{query} uses retrieval + generation"
+    # ✅ Knowledge Graph enrichment
+    graph_context = knowledge_graph.get(query.lower(), [])
 
-    # ✅ 4. Store in Redis
-    redis_client.set(query, answer)
+    # ✅ Combine context
+    full_context = context + graph_context
+
+    # ✅ Generate response
+    result = f"RAG answer for '{query}' using context {full_context}"
+
+    # ✅ Store in cache
+    redis_client.set(cache_key, result)
 
     return {
-        "results": [answer],
-        "confidence": round(random.uniform(0.7, 0.95), 2)
+        "results": [result],
+        "confidence": 0.90
     }
 
 
 # -------------------------------
-# Multi Query (Async)
+# 🔹 Multi Query (Async)
 # -------------------------------
-async def multi_query_pipeline(query: str):
+async def multi_query_pipeline(query: str, tenant_id: str):
 
     expanded_queries = [
         query,
@@ -53,7 +65,7 @@ async def multi_query_pipeline(query: str):
         f"{query} use case"
     ]
 
-    tasks = [run_pipeline(q) for q in expanded_queries]
+    tasks = [run_pipeline(q, tenant_id) for q in expanded_queries]
 
     results = await asyncio.gather(*tasks)
 
