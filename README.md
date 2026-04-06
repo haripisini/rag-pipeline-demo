@@ -4,7 +4,7 @@
 This project demonstrates a scalable RAG (Retrieval-Augmented Generation) pipeline.
 
 ## Architecture Diagram
-![RAG Pipeline](docs/rag-architecture.png)
+docs/docs/rag-architecture.png
 
 ## Features
 - Multi-tenant isolation
